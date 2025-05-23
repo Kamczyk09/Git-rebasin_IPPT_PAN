@@ -38,4 +38,6 @@ def plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
   ax.set_title(f"Accuracy between the two models")
   ax.legend(loc="lower right", framealpha=0.5)
   fig.tight_layout()
+  print("costam")
+  plt.show()
   return fig

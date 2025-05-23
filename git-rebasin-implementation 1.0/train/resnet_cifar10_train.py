@@ -2,6 +2,8 @@ import argparse
 import torch
 import torch.optim as optim
 from torchvision import datasets, transforms
+import sys
+import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils_module.training import train, test
