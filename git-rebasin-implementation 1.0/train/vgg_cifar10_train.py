@@ -1,9 +1,11 @@
-from models.vgg import VGG
 import argparse
 import torch
 import torch.optim as optim
 from torchvision import datasets, transforms, models
-from utils.training import train, test
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils_module.training import train, test
+from models.vgg import VGG
 
 def main():
     parser = argparse.ArgumentParser()

@@ -1,10 +1,14 @@
-from models.mlp import MLP
 import argparse
 import torch
 import torch.optim as optim
 from torchvision import datasets, transforms
-from utils.training import train, test
+import sys
+import os
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from utils_module.training import train, test
+from models.mlp import MLP
 
 def main():
   parser = argparse.ArgumentParser()

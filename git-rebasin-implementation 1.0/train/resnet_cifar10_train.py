@@ -1,9 +1,11 @@
 import argparse
 import torch
-from models.resnet import ResNet
 import torch.optim as optim
 from torchvision import datasets, transforms
-from utils.training import train, test
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils_module.training import train, test
+from models.resnet import ResNet
 
 def main():
     parser = argparse.ArgumentParser()
