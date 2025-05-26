@@ -10,7 +10,9 @@ def train(args, model, device, train_loader, optimizer, epoch, softmax=False):
         output = model(data)
         if softmax:
             output = F.log_softmax(output, dim=1)
-        loss = F.nll_loss(output, target)
+        # loss = F.nll_loss(output, target)
+        # loss = F.mse_loss(output, target.float())
+        loss = F.cross_entropy(output, target)
         pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
         correct += pred.eq(target.view_as(pred)).sum().item()
         loss.backward()
