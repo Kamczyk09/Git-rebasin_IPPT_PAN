@@ -32,11 +32,18 @@ def main():
     checkpoint_b = torch.load(args.model_b, map_location=device)
     model_b.load_state_dict(checkpoint_b)
 
-    permutation_spec = mlp_permutation_spec(4)
+    #TWORZENIE PRZESTRZENI WAG PO PERMUTACJI
+    permutation_spec = mlp_permutation_spec(4) #tworzy mapę - jakie permutacje trzeba zastosować dla konkretnych warstw i osi (weight lub bias)
     final_permutation = weight_matching(permutation_spec,
                                         flatten_params(model_a), flatten_params(model_b))
 
+    print(final_permutation)
+    if True:
+        raise("Koniec")
+
     updated_params = apply_permutation(permutation_spec, final_permutation, flatten_params(model_b))
+    ########################################
+
 
     # test against mnist
     transform = transforms.Compose([

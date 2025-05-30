@@ -11,11 +11,11 @@ class CNN(nn.Module):
         self.dropout1 = nn.Dropout(0.25)
         self.dropout2 = nn.Dropout(0.5)
         self.avg = nn.AvgPool2d(kernel_size=1, stride=1)
-        self.fc1 = nn.Linear(25088, 128)
+        self.fc1 = nn.Linear(128*14*14, 128)
         self.fc2 = nn.Linear(128, 10)
 
     def forward(self, x):
-        print(f"Input shape: {x.shape}")
+        # print(f"Input shape: {x.shape}")
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)

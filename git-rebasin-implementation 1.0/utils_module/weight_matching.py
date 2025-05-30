@@ -33,9 +33,25 @@ def mlp_permutation_spec(num_hidden_layers: int) -> PermutationSpec:
   })
 
 
+# def cnn_permutation_spec() -> PermutationSpec:
+#   conv = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in, None, None, )}
+#   dense = lambda name, p_in, p_out, bias=True: {f"{name}.weight": (p_out, p_in), f"{name}.bias": (p_out, )} if bias else  {f"{name}.weight": (p_out, p_in)}
+#
+#   return permutation_spec_from_axes_to_perm({
+#      **conv("conv1", None, "P_bg0"),
+#      **conv("conv2", "P_bg0", "P_bg1"),
+#      **dense("fc1", "P_bg1", "P_bg2"),
+#      **dense("fc2", "P_bg2", None, False),
+#   })
+
 def cnn_permutation_spec() -> PermutationSpec:
-  conv = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in, None, None, )}
-  dense = lambda name, p_in, p_out, bias=True: {f"{name}.weight": (p_out, p_in), f"{name}.bias": (p_out, )} if bias else  {f"{name}.weight": (p_out, p_in)}
+  conv = lambda name, p_in, p_out: {f"{name}.weight": (p_out, p_in, None, None)}
+  dense = lambda name, p_in, p_out, bias=True: {
+      f"{name}.weight": (p_out, None),
+      f"{name}.bias": (p_out,)
+  } if bias else {
+      f"{name}.weight": (p_out, None)
+  }
 
   return permutation_spec_from_axes_to_perm({
      **conv("conv1", None, "P_bg0"),
@@ -43,6 +59,7 @@ def cnn_permutation_spec() -> PermutationSpec:
      **dense("fc1", "P_bg1", "P_bg2"),
      **dense("fc2", "P_bg2", None, False),
   })
+
 
 
 
@@ -205,9 +222,17 @@ def get_permuted_param(ps: PermutationSpec, perm, k: str, params, except_axis=No
 
   return w
 
+# def apply_permutation(ps: PermutationSpec, perm, params):
+#   """Apply a `perm` to `params`."""
+#   return {k: get_permuted_param(ps, perm, k, params) for k in params.keys()}
+
 def apply_permutation(ps: PermutationSpec, perm, params):
   """Apply a `perm` to `params`."""
-  return {k: get_permuted_param(ps, perm, k, params) for k in params.keys()}
+  return {
+    k: get_permuted_param(ps, perm, k, params)
+    if k in ps.axes_to_perm else params[k]  # <-- nie zmieniaj, jeśli brak specyfikacji
+    for k in params.keys()
+  }
 
 def weight_matching(ps: PermutationSpec, params_a, params_b, max_iter=100, init_perm=None):
   """Find a permutation of `params_b` to make them match `params_a`."""
@@ -227,7 +252,11 @@ def weight_matching(ps: PermutationSpec, params_a, params_b, max_iter=100, init_
         w_b = get_permuted_param(ps, perm, wk, params_b, except_axis=axis)
         w_a = torch.moveaxis(w_a, axis, 0).reshape((n, -1))
         w_b = torch.moveaxis(w_b, axis, 0).reshape((n, -1))
-       
+
+        # print(f"{wk} axis={axis} | w_a.shape={w_a.shape}, w_b.shape={w_b.shape}")
+        # if w_a.shape != w_b.shape:
+        #   print(f"Mismatch shapes after moveaxis+reshape: {w_a.shape} vs {w_b.shape}")
+
         A += w_a @ w_b.T
 
       ri, ci = linear_sum_assignment(A.detach().numpy(), maximize=True)

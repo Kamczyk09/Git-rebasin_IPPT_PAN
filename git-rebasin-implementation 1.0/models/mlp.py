@@ -16,6 +16,7 @@ class MLP(nn.Module):
     x = nn.functional.relu(self.layer0(x))
     x = nn.functional.relu(self.layer1(x))
     x = nn.functional.relu(self.layer2(x))
+    x = nn.functional.relu(self.layer2(x))
     x = nn.functional.relu(self.layer3(x))
     x = self.layer4(x)
 
