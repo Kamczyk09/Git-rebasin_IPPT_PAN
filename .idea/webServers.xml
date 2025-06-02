@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="3a7da425-d590-45d1-9130-a49640f380e5" name="LICZYK_3">
+        <fileTransfer accessType="SFTP" host="148.81.54.244" port="22" sshConfigId="a08625ef-b558-4f8d-a36f-127620050a53" sshConfig="skaminsk@148.81.54.244:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+      <webServer id="1a8ae01e-e693-4e97-8c0f-2e1bd9eefeb6" name="LICZYK_1">
+        <fileTransfer accessType="SFTP" host="148.81.54.115" port="22" sshConfigId="db1e53c9-daa7-4efa-9719-83947f28ac12" sshConfig="skaminsk@148.81.54.115:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
