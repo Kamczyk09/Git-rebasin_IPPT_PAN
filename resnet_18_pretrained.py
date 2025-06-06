@@ -8,30 +8,35 @@ import matplotlib.pyplot as plt
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # hyperparameters:
-lr = 0.001
+lr = 0.005
 nEpochs = 5
-batch_size = 64
+batch_size = 128
 
-data_dir = "./medical_images"
+data_dir = "matching_mod/data/medical_images"
 
 transform = ResNet18_Weights.DEFAULT.transforms()
 
 train_dataset = datasets.ImageFolder(os.path.join(data_dir, "train"), transform=transform)
 test_dataset = datasets.ImageFolder(os.path.join(data_dir, "test"), transform=transform)
 
-train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 print("Klasy:", train_dataset.classes)
 print("Mapowanie klas:", train_dataset.class_to_idx)
 
-
 model = resnet18(weights=ResNet18_Weights.DEFAULT)
-model.fc = nn.Linear(512, 1)
+model.fc = nn.Sequential(
+    nn.Dropout(0.5),
+    nn.Linear(512, 1)
+)
+# model.fc = nn.Linear(512, 1)
 model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-criterion = nn.BCEWithLogitsLoss()
+pos_weight_value = torch.tensor([1341 / 3875]).to(device)
+criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_value)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3)
 
 train_losses = []
 test_losses = []
@@ -51,9 +56,8 @@ for epoch in range(nEpochs):
 
         running_loss += loss.item()
 
-    epoch_loss = running_loss / len(train_loader)
-    train_losses.append(epoch_loss)
-    print("Epoch [{}/{}], Loss: {:.4f}".format(epoch, nEpochs, epoch_loss))
+    epoch_loss_train = running_loss / len(train_loader)
+    train_losses.append(epoch_loss_train)
 
     model.eval()
     running_loss = 0.0
@@ -67,10 +71,14 @@ for epoch in range(nEpochs):
 
             running_loss += loss.item()
 
-        epoch_loss = running_loss / len(test_loader)
-        test_losses.append(epoch_loss)
+        epoch_loss_test = running_loss / len(test_loader)
+        test_losses.append(epoch_loss_test)
 
-torch.save(model.state_dict(), "resnet18_pretrained.pth")
+    print(
+        f"Epoch [{epoch + 1}/{nEpochs}], Loss train: {epoch_loss_train:.4f}, Loss test: {epoch_loss_test:.4f}")
+    scheduler.step(epoch_loss_test)
+
+torch.save(model.state_dict(), "przykładowe_wyniki/resnet18_pretrained.pth")
 
 fig, ax = plt.subplots()
 ax.plot(train_losses, label="Train")
@@ -78,7 +86,6 @@ ax.plot(test_losses, label="Test")
 ax.legend()
 
 plt.savefig("resnet_18_pretrained.png")
-plt.show()
 
 correct = 0
 total = 0

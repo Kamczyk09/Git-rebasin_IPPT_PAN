@@ -26,6 +26,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+
     # load models
     model_a = ResNet(args.depth, args.width_multiplier, 0, num_classes=10).to(device)
     model_b = ResNet(args.depth, args.width_multiplier, 0, num_classes=10).to(device)
@@ -33,6 +34,7 @@ def main():
     model_a.load_state_dict(checkpoint)
     checkpoint_b = torch.load(args.model_b, map_location=device)
     model_b.load_state_dict(checkpoint_b)
+
 
     if args.depth == 22:
         permutation_spec = resnet20_permutation_spec()

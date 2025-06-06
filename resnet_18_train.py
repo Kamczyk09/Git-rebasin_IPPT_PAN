@@ -5,17 +5,19 @@ import os
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.metrics import matthews_corrcoef
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # hyperparameters:
-lr = 0.001
-nEpochs = 20
-batch_size = 64
+lr = 0.005
+nEpochs = 5
+batch_size = 128
 
-data_dir = "./medical_images"
+data_dir = "matching_mod/data/medical_images"
 
 transform = transforms.Compose([
-    transforms.Resize((256, 256)),
+    transforms.Resize((512, 512)),
     transforms.ToTensor(),
     transforms.Normalize([0.5], [0.5])
 ])
@@ -23,15 +25,17 @@ transform = transforms.Compose([
 train_dataset = datasets.ImageFolder(os.path.join(data_dir, "train"), transform=transform)
 test_dataset = datasets.ImageFolder(os.path.join(data_dir, "test"), transform=transform)
 
-train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-print("Klasy:", train_dataset.classes)
 print("Mapowanie klas:", train_dataset.class_to_idx)
 
 
 model = models.resnet18(weights=None)
-model.fc = torch.nn.Linear(512, 1)
+model.fc = nn.Sequential(
+    nn.Dropout(0.5),
+    nn.Linear(512, 1)
+)
 model.to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -39,6 +43,7 @@ criterion = nn.BCEWithLogitsLoss()
 
 train_losses = []
 test_losses = []
+mccs = []
 for epoch in range(nEpochs):
     model.train()
     running_loss = 0.0
@@ -55,12 +60,14 @@ for epoch in range(nEpochs):
 
         running_loss += loss.item()
 
-    epoch_loss = running_loss / len(train_loader)
-    train_losses.append(epoch_loss)
-    print("Epoch [{}/{}], Loss: {:.4f}".format(epoch, nEpochs, epoch_loss))
+    epoch_loss_train = running_loss / len(train_loader)
+    train_losses.append(epoch_loss_train)
 
-    model.eval()
     running_loss = 0.0
+    model.eval()
+    all_preds = []
+    all_labels = []
+
     with torch.no_grad():
         for images, labels in test_loader:
             images = images.to(device)
@@ -68,21 +75,35 @@ for epoch in range(nEpochs):
 
             outputs = model(images)
             loss = criterion(outputs, labels)
-
             running_loss += loss.item()
 
-        epoch_loss = running_loss / len(test_loader)
-        test_losses.append(epoch_loss)
+            preds = (torch.sigmoid(outputs) > 0.5).float()
 
-torch.save(model.state_dict(), "resnet18.pth")
+            all_preds.append(preds.cpu().numpy())
+            all_labels.append(labels.cpu().numpy())
 
-fig, ax = plt.subplots()
-ax.plot(train_losses, label="Train")
-ax.plot(test_losses, label="Test")
-ax.legend()
+    epoch_loss_test = running_loss / len(test_loader)
+    test_losses.append(epoch_loss_test)
+
+    all_preds = np.vstack(all_preds).flatten()
+    all_labels = np.vstack(all_labels).flatten()
+
+    mcc = matthews_corrcoef(all_labels, all_preds)
+    mccs.append(mcc)
+
+    print(
+        f"Epoch [{epoch+1}/{nEpochs}], Loss train: {epoch_loss_train:.4f}, Loss test: {epoch_loss_test:.4f}, MCC: {mcc:.4f}")
+
+torch.save(model.state_dict(), "przykładowe_wyniki/resnet18.pth")
+
+fig, ax = plt.subplots(1,2)
+ax[0].plot(train_losses, label="Train")
+ax[0].plot(test_losses, label="Test")
+ax[0].legend()
+
+ax[1].plot(mccs)
 
 plt.savefig("resnet_18_train.png")
-plt.show()
 
 correct = 0
 total = 0
