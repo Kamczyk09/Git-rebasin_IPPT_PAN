@@ -3,14 +3,23 @@ import torch
 from tqdm import tqdm
 import copy
 import matplotlib.pyplot as plt
-
-import ResNet18 as model_func
 from utils_module.training import test
-from utils_module.weight_matching import weight_matching, apply_permutation, resnet18_permutation_spec
+from utils_module.weight_matching import weight_matching, apply_permutation, resnet18_permutation_spec, cnn_permutation_spec, mlp_permutation_spec
 from utils_module.utils import  lerp
 from utils_module.plot import plot_interp_acc
 from data.cifar10 import load_data
 from torch.utils.data import DataLoader
+
+model_type = 'mlp'
+
+if model_type == 'cnn':
+    import CNN as model_func
+elif model_type == 'resnet18':
+    import ResNet18 as model_func
+elif model_type == 'mlp':
+    import MLP as model_func
+else:
+    raise("Wrong model_type")
 
 
 # /home/skaminsk/Pulpit/matching_mod/models_checkpoints/resnet18_pretrained.pth
@@ -24,8 +33,8 @@ def main():
     args = parser.parse_args()
 
     if args.model_a is None:
-        args.model_a = 'models_checkpoints/resnet18_raw.pth'
-        args.model_b = 'models_checkpoints/resnet18_pretrained.pth'
+        args.model_a = f'models_checkpoints/{model_type}_raw.pth'
+        args.model_b = f'models_checkpoints/{model_type}_pretrained.pth'
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -50,7 +59,14 @@ def main():
     checkpoint_b = torch.load(args.model_b, map_location=device)
     model_b.load_state_dict(checkpoint_b)
 
-    permutation_spec = resnet18_permutation_spec() # stworzyć taką funkcję w utils_module.weight_matching
+    if model_type=="cnn":
+        permutation_spec = cnn_permutation_spec()
+    elif model_type=="resnet18":
+        permutation_spec = resnet18_permutation_spec()
+    elif model_type=="mlp":
+        permutation_spec = mlp_permutation_spec(4)
+    else:
+        raise("Wrong model_type")
 
     state_dict_a = {k: v.to(device) for k, v in model_a.state_dict().items()}
     state_dict_b = {k: v.to(device) for k, v in model_b.state_dict().items()}
@@ -63,7 +79,7 @@ def main():
 
     print("Checkpoint 2 - loading models")
 
-    lambdas = torch.linspace(0, 1, steps=10)
+    lambdas = torch.linspace(0, 1, steps=30)
 
     test_acc_interp_clever = []
     test_acc_interp_naive = []
@@ -105,7 +121,7 @@ def main():
 
     fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
                          train_acc_interp_clever, test_acc_interp_clever)
-    plt.savefig(f"{args.seed}_weight_matching_interp_accuracy_epoch.png")
+    plt.savefig(f"{args.seed}_weight_matching_{model_type}.png")
 
 
 if __name__ == "__main__":

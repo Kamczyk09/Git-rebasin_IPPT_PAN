@@ -1,41 +1,32 @@
-import torch
 import torch.nn as nn
-from data.cifar10 import load_data
+import torch
 from torch.utils.data import DataLoader
+from data.cifar10 import load_data
 import os
-import torch.nn.functional as F
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
 class Model(nn.Module):
-    def __init__(self, num_classes):
-        super(Model, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 128, 3, 1)
-        self.dropout1 = nn.Dropout(0.25)
-        self.dropout2 = nn.Dropout(0.5)
-        self.avg = nn.AvgPool2d(kernel_size=1, stride=1)
-        self.fc1 = nn.Linear(128*14*14, 128)
-        self.fc2 = nn.Linear(128, num_classes)
+    def __init__(self, n_classes):
+        super().__init__()
+        self.layer0 = nn.Linear(3*32*32, 512)
+        self.layer1 = nn.Linear(512, 512)
+        self.layer2 = nn.Linear(512, 512)
+        self.layer3 = nn.Linear(512, 256)
+        self.layer4 = nn.Linear(256, n_classes)
+
 
     def forward(self, x):
-        # print(f"Input shape: {x.shape}")
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = F.max_pool2d(x, 2)
-        x = self.dropout1(x)
-        x = self.avg(x)
-        # print(f"in fc1 pre: {x.shape}")
+        # print(x.shape)
         x = x.view(x.size(0), -1)
-        # print(f"in fc1 post: {x.shape}")
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
-        x = self.fc2(x)
-        output = F.log_softmax(x, dim=1)
-        return output
+        # print(x.shape)
+        x = nn.functional.relu(self.layer0(x))
+        x = nn.functional.relu(self.layer1(x))
+        x = nn.functional.relu(self.layer2(x))
+        x = nn.functional.relu(self.layer2(x))
+        x = nn.functional.relu(self.layer3(x))
+        x = self.layer4(x)
+
+        return nn.functional.log_softmax(x)
 
 def return_model(nOutputNeurons):
     model = Model(nOutputNeurons)
@@ -130,7 +121,7 @@ def train(nEpochs, pretrained=False):
 
     save_dir = "models_checkpoints"
     os.makedirs(save_dir, exist_ok=True)
-    torch.save(model.state_dict(), f'{save_dir}/cnn_{"pretrained" if pretrained else "raw"}.pth')
+    torch.save(model.state_dict(), f'{save_dir}/mlp_{"pretrained" if pretrained else "raw"}.pth')
 
     return model.state_dict()
 
@@ -146,7 +137,7 @@ def evaluate(model=None, pretrained=False):
     # print(f"Testing on {nOutputNeurons} neurons")
 
     if model is None:
-        weights = f"models_checkpoints/cnn_{'pretrained' if pretrained else 'raw'}.pth"
+        weights = f"models_checkpoints/mlp_{'pretrained' if pretrained else 'raw'}.pth"
         model = return_model(nOutputNeurons)
         model.load_state_dict(torch.load(weights))
 
@@ -174,4 +165,3 @@ def evaluate(model=None, pretrained=False):
     print(f"Accuracy: {accuracy:.4f}")
 
     return accuracy
-
