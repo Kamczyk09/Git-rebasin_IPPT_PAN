@@ -44,10 +44,14 @@ def main():
         print("invalid depth")
         return
 
-    final_permutation = weight_matching(permutation_spec,
-                                        model_a.state_dict(), model_b.state_dict())
+    state_dict_a = {k: v.to(device) for k, v in model_a.state_dict().items()}
+    state_dict_b = {k: v.to(device) for k, v in model_b.state_dict().items()}
 
-    updated_params = apply_permutation(permutation_spec, final_permutation, model_b.state_dict())
+    final_permutation = weight_matching(permutation_spec,
+                                        state_dict_a, state_dict_b)
+
+    updated_params = apply_permutation(permutation_spec,
+                                       final_permutation, state_dict_b)
 
     # CIFAR10 data prep
     transform = transforms.Compose([

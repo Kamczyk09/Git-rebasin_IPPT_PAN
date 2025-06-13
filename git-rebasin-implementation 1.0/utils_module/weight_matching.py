@@ -6,7 +6,6 @@ import torch
 from scipy.optimize import linear_sum_assignment
 
 
-
 class PermutationSpec(NamedTuple):
   perm_to_axes: dict
   axes_to_perm: dict
@@ -48,8 +47,62 @@ def cnn_permutation_spec() -> PermutationSpec:
      **dense("fc2", "P_bg2", None, False),
   })
 
+# własna funkcja
+def resnet18_permutation_spec() -> PermutationSpec:
+  conv = lambda name, p_in, p_out: {
+    f"{name}.weight": (p_out, p_in, None, None)
+  }
+  norm = lambda name, p: {
+    f"{name}.weight": (p,),
+    f"{name}.bias": (p,),
+    f"{name}.running_mean": (p,),
+    f"{name}.running_var": (p,)
+  }
+  dense = lambda name, p_in, p_out: {
+    f"{name}.weight": (p_out, p_in),
+    f"{name}.bias": (p_out,)
+  }
 
+  easyblock = lambda name, p: {
+    **conv(f"{name}.conv1", p, f"P_{name}_mid"),
+    **norm(f"{name}.bn1", f"P_{name}_mid"),
+    **conv(f"{name}.conv2", f"P_{name}_mid", p),
+    **norm(f"{name}.bn2", p),
+  }
 
+  shortcutblock = lambda name, p_in, p_out: {
+    **conv(f"{name}.conv1", p_in, f"P_{name}_mid"),
+    **norm(f"{name}.bn1", f"P_{name}_mid"),
+    **conv(f"{name}.conv2", f"P_{name}_mid", p_out),
+    **norm(f"{name}.bn2", p_out),
+    **conv(f"{name}.downsample.0", p_in, p_out),
+    **norm(f"{name}.downsample.1", p_out),
+  }
+
+  return permutation_spec_from_axes_to_perm({
+    # Initial conv and norm
+    **conv("conv1", None, "P_0"),
+    **norm("bn1", "P_0"),
+
+    # Layer1 (no downsampling)
+    **easyblock("layer1.0", "P_0"),
+    **easyblock("layer1.1", "P_0"),
+
+    # Layer2 (downsampling)
+    **shortcutblock("layer2.0", "P_0", "P_1"),
+    **easyblock("layer2.1", "P_1"),
+
+    # Layer3 (downsampling)
+    **shortcutblock("layer3.0", "P_1", "P_2"),
+    **easyblock("layer3.1", "P_2"),
+
+    # Layer4 (downsampling)
+    **shortcutblock("layer4.0", "P_2", "P_3"),
+    **easyblock("layer4.1", "P_3"),
+
+    # Final fully connected layer after Dropout (ignore Dropout, no weights)
+    **dense("fc.1", "P_3", None),
+  })
 
 
 def resnet20_permutation_spec() -> PermutationSpec:
@@ -196,19 +249,35 @@ def vgg16_permutation_spec() -> PermutationSpec:
       **dense("classifier", "P_Conv_40", "P_Dense_0", False),
 })
 
+# def get_permuted_param(ps: PermutationSpec, perm, k: str, params, except_axis=None):
+#   """Get parameter `k` from `params`, with the permutations applied."""
+#   w = params[k]
+#   for axis, p in enumerate(ps.axes_to_perm[k]):
+#     # Skip the axis we're trying to permute.
+#     if axis == except_axis:
+#       continue
+#
+#     # None indicates that there is no permutation relevant to that axis.
+#     if p is not None:
+#         w = torch.index_select(w, axis, perm[p].int())
+#
+#   return w
+
 def get_permuted_param(ps: PermutationSpec, perm, k: str, params, except_axis=None):
   """Get parameter `k` from `params`, with the permutations applied."""
   w = params[k]
   for axis, p in enumerate(ps.axes_to_perm[k]):
-    # Skip the axis we're trying to permute.
     if axis == except_axis:
       continue
 
-    # None indicates that there is no permutation relevant to that axis.
+    # None indicates no permutation on this axis
     if p is not None:
-        w = torch.index_select(w, axis, perm[p].int())
+      # Ensure permutation tensor is on the same device as w
+      perm_tensor = perm[p].to(w.device).int()
+      w = torch.index_select(w, axis, perm_tensor)
 
   return w
+
 
 # def apply_permutation(ps: PermutationSpec, perm, params):
 #   """Apply a `perm` to `params`."""
@@ -241,16 +310,20 @@ def weight_matching(ps: PermutationSpec, params_a, params_b, max_iter=100, init_
         w_a = torch.moveaxis(w_a, axis, 0).reshape((n, -1))
         w_b = torch.moveaxis(w_b, axis, 0).reshape((n, -1))
 
-        # print(f"{wk} axis={axis} | w_a.shape={w_a.shape}, w_b.shape={w_b.shape}")
-        # if w_a.shape != w_b.shape:
-        #   print(f"Mismatch shapes after moveaxis+reshape: {w_a.shape} vs {w_b.shape}")
-
+        device = w_a.device
+        w_b = w_b.to(device)
+        A = A.to(device)
         A += w_a @ w_b.T
 
-      ri, ci = linear_sum_assignment(A.detach().numpy(), maximize=True)
+      # ri, ci = linear_sum_assignment(A.detach().numpy(), maximize=True)
+      ri, ci = linear_sum_assignment(A.detach().cpu().numpy(), maximize=True)
       assert (torch.tensor(ri) == torch.arange(len(ri))).all()
-      oldL = torch.einsum('ij,ij->i', A, torch.eye(n)[perm[p].long()]).sum()
-      newL = torch.einsum('ij,ij->i', A,torch.eye(n)[ci, :]).sum()
+
+      device = A.device
+      eye = torch.eye(n, device=device)
+      oldL = torch.einsum('ij,ij->i', A, eye[perm[p].long()]).sum()
+
+      newL = torch.einsum('ij,ij->i', A, torch.eye(n, device=A.device)[ci, :]).sum()
       print(f"{iteration}/{p}: {newL - oldL}")
       progress = progress or newL > oldL + 1e-12
 

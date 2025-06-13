@@ -1,3 +1,7 @@
 import ResNet18
+import torch
 
-ResNet18.train(1, 2)
+# print("Model raw training")
+ResNet18.train(10, pretrained=True)
+ResNet18.evaluate(pretrained=True)
+

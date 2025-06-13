@@ -9,16 +9,23 @@ from utils_module.training import test
 from utils_module.weight_matching import weight_matching, apply_permutation, resnet18_permutation_spec
 from utils_module.utils import  lerp
 from utils_module.plot import plot_interp_acc
-from data.medical_images import load_data
+from data.cifar10 import load_data
 from torch.utils.data import DataLoader
 
+
+# /home/skaminsk/Pulpit/matching_mod/models_checkpoints/resnet18_pretrained.pth
+# /home/skaminsk/Pulpit/matching_mod/models_checkpoints/resnet18_raw.pth
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_a", type=str, required=True)
-    parser.add_argument("--model_b", type=str, required=True)
+    parser.add_argument("--model_a", type=str, default=None)
+    parser.add_argument("--model_b", type=str, default=None)
 
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
     args = parser.parse_args()
+
+    if args.model_a is None:
+        args.model_a = 'models_checkpoints/resnet18_raw.pth'
+        args.model_b = 'models_checkpoints/resnet18_pretrained.pth'
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
@@ -26,30 +33,37 @@ def main():
     print("Checkpoint 0")
 
     ######LOADING DATA######
-    trainset, testset = load_data(pretrained=True) #!!!!! true czy false
+    trainset, testset = load_data()
     ########################
     train_loader = DataLoader(trainset, batch_size=1024, shuffle=True)
-    test_loader = DataLoader(trainset, batch_size=1024, shuffle=False)
-    num_classes = len(trainset.classes)
+    test_loader = DataLoader(testset, batch_size=1024, shuffle=False)
+    num_classes = 1 if len(trainset.classes)==2 else len(trainset.classes)
+
+    print("Checkpoint 1 - loading data")
+    print(num_classes)
 
     # load models
-    model_a = model_func.return_model(nOutputNeurons=num_classes)
+    model_a = model_func.return_model(nOutputNeurons=num_classes).to(device)
     checkpoint = torch.load(args.model_a, map_location=device)
     model_a.load_state_dict(checkpoint)
-    model_b = model_func.return_model(nOutputNeurons=num_classes)
+    model_b = model_func.return_model(nOutputNeurons=num_classes).to(device)
     checkpoint_b = torch.load(args.model_b, map_location=device)
     model_b.load_state_dict(checkpoint_b)
 
     permutation_spec = resnet18_permutation_spec() # stworzyć taką funkcję w utils_module.weight_matching
 
+    state_dict_a = {k: v.to(device) for k, v in model_a.state_dict().items()}
+    state_dict_b = {k: v.to(device) for k, v in model_b.state_dict().items()}
+
     final_permutation = weight_matching(permutation_spec,
-                                        model_a.state_dict(), model_b.state_dict())
+                                        state_dict_a, state_dict_b)
 
+    updated_params = apply_permutation(permutation_spec,
+                                       final_permutation, state_dict_b)
 
-    updated_params = apply_permutation(permutation_spec, final_permutation, model_b.state_dict())
-    #
+    print("Checkpoint 2 - loading models")
 
-    lambdas = torch.linspace(0, 1, steps=25)
+    lambdas = torch.linspace(0, 1, steps=10)
 
     test_acc_interp_clever = []
     test_acc_interp_naive = []
@@ -82,6 +96,12 @@ def main():
         test_acc_interp_clever.append(acc)
         train_loss, acc = test(model_b, device, train_loader, True)
         train_acc_interp_clever.append(acc)
+
+    print("train_acc_interp_naive:", train_acc_interp_naive)
+    print("train_acc_interp_clever:", train_acc_interp_clever)
+    print("test_acc_interp_naive:", test_acc_interp_naive)
+    print("test_acc_interp_clever:", test_acc_interp_clever)
+    print("lambdas:", lambdas)
 
     fig = plot_interp_acc(lambdas, train_acc_interp_naive, test_acc_interp_naive,
                          train_acc_interp_clever, test_acc_interp_clever)

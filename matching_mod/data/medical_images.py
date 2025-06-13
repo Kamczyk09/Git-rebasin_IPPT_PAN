@@ -1,4 +1,4 @@
-from torchvision.models import resnet18, ResNet18_Weights
+from torchvision.models import ResNet18_Weights
 from torchvision import datasets, transforms
 import os
 
