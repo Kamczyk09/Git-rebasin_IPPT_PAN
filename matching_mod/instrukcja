@@ -1,1 +1,1 @@
-Aby odplaić metodę git-rebasin weight matching trzeba użyć pliku matching_mod
+Aby odplaić metodę git-rebasin weight matching trzeba uruchomić plik weight_matching_mod. W nim znajduje się zmienna globalna model_type. Przyjmuje wartości: 'mlp','cnn', 'resnet18'. Po wyborze odpowiedniego modelu program zapisuje plik png z końcowym wykresem.
