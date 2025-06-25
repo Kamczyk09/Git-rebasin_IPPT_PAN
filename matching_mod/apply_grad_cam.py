@@ -7,7 +7,6 @@ import models.ResNet18 as ResNet18
 import torch
 import numpy as np
 from utils_module.utils import merge_models
-import cv2
 
 cifar_classes = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
