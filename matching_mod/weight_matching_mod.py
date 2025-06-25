@@ -13,17 +13,15 @@ from torch.utils.data import DataLoader
 model_type = 'mlp'
 
 if model_type == 'cnn':
-    import CNN as model_func
+    from matching_mod.models import CNN as model_func
 elif model_type == 'resnet18':
-    import ResNet18 as model_func
+    from matching_mod.models import MLP as model_func
 elif model_type == 'mlp':
-    import MLP as model_func
+    from matching_mod.models import ResNet18 as model_func
 else:
     raise("Wrong model_type")
 
 
-# /home/skaminsk/Pulpit/matching_mod/models_checkpoints/resnet18_pretrained.pth
-# /home/skaminsk/Pulpit/matching_mod/models_checkpoints/resnet18_raw.pth
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_a", type=str, default=None)

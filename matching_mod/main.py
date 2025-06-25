@@ -1,13 +1,5 @@
-import ResNet18
-import CNN
-import MLP
-import torch
+from models import ResNet18
 
-print("Model pretrained training")
-MLP.train(15, pretrained=True)
-MLP.evaluate(pretrained=True)
-
-print("Model raw training")
-MLP.train(10, pretrained=False)
-MLP.evaluate(pretrained=False)
+ResNet18.train(10, pretrained=True)
+ResNet18.evaluate(pretrained=True)
 

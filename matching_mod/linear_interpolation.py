@@ -1,12 +1,12 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from CNN import evaluate, return_model
+from models.ResNet18 import evaluate, return_model
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-state_dict_1 = torch.load('models_checkpoints/cnn_raw.pth', weights_only=True)
-state_dict_2 = torch.load('models_checkpoints/cnn_pretrained.pth', weights_only=True)
+state_dict_1 = torch.load('models_checkpoints/resnet18_T800.pth', weights_only=True)
+state_dict_2 = torch.load('models_checkpoints/resnet18_T1000.pth', weights_only=True)
 
 alphas = np.linspace(0, 1, 50)
 
